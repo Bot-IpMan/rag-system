@@ -1,7 +1,8 @@
 services:
   # ChromaDB Vector Database
   chromadb:
-    image: chromadb/chroma:0.4.18
+    build:
+      context: ./chromadb
     ports:
       - "8001:8000"
     volumes:

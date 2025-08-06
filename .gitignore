@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+*.log
+.env
+.env.*
+
+# Node
+node_modules/
+frontend/node_modules/
+frontend/package-lock.json
+
+# Data directories
+data/
+*/data/
+vector_db/
