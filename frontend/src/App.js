@@ -1,214 +1,255 @@
-# frontend/src/App.css
-.App {
-  text-align: center;
-  min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import './App.css';
+
+const API_BASE_URL = process.env.REACT_APP_RAG_API_URL || 'http://localhost:8002';
+const LLM_API_URL = process.env.REACT_APP_LLM_API_URL || 'http://localhost:8003';
+
+function App() {
+  const [files, setFiles] = useState([]);
+  const [uploadStatus, setUploadStatus] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [chatMessage, setChatMessage] = useState('');
+  const [chatHistory, setChatHistory] = useState([]);
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('upload');
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const fetchStats = async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/documents/stats`);
+      setStats(response.data);
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    }
+  };
+
+  const handleFileUpload = async (event) => {
+    const selectedFiles = Array.from(event.target.files);
+    setFiles(selectedFiles);
+    
+    if (selectedFiles.length === 0) return;
+
+    const formData = new FormData();
+    selectedFiles.forEach(file => {
+      formData.append('files', file);
+    });
+
+    try {
+      setLoading(true);
+      setUploadStatus('Завантаження...');
+      
+      const response = await axios.post(`${API_BASE_URL}/documents/upload`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      
+      setUploadStatus(`Успішно завантажено: ${response.data.message}`);
+      fetchStats();
+      
+    } catch (error) {
+      setUploadStatus(`Помилка: ${error.response?.data?.detail || error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+
+    try {
+      setLoading(true);
+      const response = await axios.post(`${API_BASE_URL}/search`, {
+        query: searchQuery,
+        limit: 5
+      });
+      setSearchResults(response.data.results);
+    } catch (error) {
+      console.error('Search error:', error);
+      setSearchResults([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChat = async (e) => {
+    e.preventDefault();
+    if (!chatMessage.trim()) return;
+
+    const newMessage = { type: 'user', content: chatMessage };
+    setChatHistory(prev => [...prev, newMessage]);
+    
+    try {
+      setLoading(true);
+      const response = await axios.post(`${LLM_API_URL}/chat`, {
+        message: chatMessage,
+        use_rag: true
+      });
+      
+      const aiResponse = { 
+        type: 'ai', 
+        content: response.data.response,
+        sources: response.data.sources 
+      };
+      setChatHistory(prev => [...prev, aiResponse]);
+      
+    } catch (error) {
+      console.error('Chat error:', error);
+      const errorResponse = { 
+        type: 'ai', 
+        content: 'Вибачте, сталася помилка при обробці вашого запиту.' 
+      };
+      setChatHistory(prev => [...prev, errorResponse]);
+    } finally {
+      setLoading(false);
+      setChatMessage('');
+    }
+  };
+
+  return (
+    <div className="App">
+      <header className="App-header">
+        <h1>🔍 RAG System</h1>
+        <p>Система для роботи з документами та AI-асистентом</p>
+      </header>
+
+      <nav className="tabs">
+        <button 
+          className={activeTab === 'upload' ? 'active' : ''} 
+          onClick={() => setActiveTab('upload')}
+        >
+          📁 Завантаження
+        </button>
+        <button 
+          className={activeTab === 'search' ? 'active' : ''} 
+          onClick={() => setActiveTab('search')}
+        >
+          🔍 Пошук
+        </button>
+        <button 
+          className={activeTab === 'chat' ? 'active' : ''} 
+          onClick={() => setActiveTab('chat')}
+        >
+          💬 Чат з AI
+        </button>
+      </nav>
+
+      <main className="main-content">
+        {stats && (
+          <div className="stats-bar">
+            <span>📚 Документів: {stats.count || 0}</span>
+            <span>🔧 Модель: {stats.embedding_model}</span>
+          </div>
+        )}
+
+        {activeTab === 'upload' && (
+          <section className="upload-section">
+            <h2>Завантаження документів</h2>
+            <div className="upload-area">
+              <input
+                type="file"
+                multiple
+                onChange={handleFileUpload}
+                accept=".pdf,.txt,.md,.html,.csv,.xlsx,.docx,.json"
+                disabled={loading}
+              />
+              <p>Підтримувані формати: PDF, TXT, MD, HTML, CSV, XLSX, DOCX, JSON</p>
+            </div>
+            
+            {uploadStatus && (
+              <div className={`status ${uploadStatus.includes('Помилка') ? 'error' : 'success'}`}>
+                {uploadStatus}
+              </div>
+            )}
+          </section>
+        )}
+
+        {activeTab === 'search' && (
+          <section className="search-section">
+            <h2>Пошук в документах</h2>
+            <form onSubmit={handleSearch} className="search-form">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Введіть запит для пошуку..."
+                disabled={loading}
+              />
+              <button type="submit" disabled={loading}>
+                {loading ? '⏳' : '🔍'} Знайти
+              </button>
+            </form>
+
+            {searchResults.length > 0 && (
+              <div className="search-results">
+                <h3>Результати пошуку:</h3>
+                {searchResults.map((result, index) => (
+                  <div key={index} className="result-item">
+                    <div className="result-score">
+                      Релевантність: {(result.score * 100).toFixed(1)}%
+                    </div>
+                    <div className="result-source">
+                      📄 {result.metadata.source}
+                    </div>
+                    <div className="result-text">
+                      {result.text}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        {activeTab === 'chat' && (
+          <section className="chat-section">
+            <h2>Чат з AI асистентом</h2>
+            <div className="chat-container">
+              <div className="chat-history">
+                {chatHistory.map((msg, index) => (
+                  <div key={index} className={`message ${msg.type}`}>
+                    <div className="message-content">
+                      {msg.content}
+                    </div>
+                    {msg.sources && msg.sources.length > 0 && (
+                      <div className="message-sources">
+                        <strong>Джерела:</strong>
+                        {msg.sources.map((source, idx) => (
+                          <div key={idx} className="source">
+                            📄 {source.source} (релевантність: {(source.score * 100).toFixed(1)}%)
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              
+              <form onSubmit={handleChat} className="chat-form">
+                <input
+                  type="text"
+                  value={chatMessage}
+                  onChange={(e) => setChatMessage(e.target.value)}
+                  placeholder="Задайте питання..."
+                  disabled={loading}
+                />
+                <button type="submit" disabled={loading}>
+                  {loading ? '⏳' : '📤'} Відправити
+                </button>
+              </form>
+            </div>
+          </section>
+        )}
+      </main>
+    </div>
+  );
 }
 
-.App-header {
-  background: rgba(0, 0, 0, 0.1);
-  padding: 20px;
-  color: white;
-}
-
-.App-header h1 {
-  margin: 0 0 10px 0;
-  font-size: 2.5rem;
-}
-
-.tabs {
-  display: flex;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.1);
-  padding: 0;
-}
-
-.tabs button {
-  background: none;
-  border: none;
-  padding: 15px 30px;
-  color: white;
-  cursor: pointer;
-  font-size: 1rem;
-  border-bottom: 3px solid transparent;
-  transition: all 0.3s;
-}
-
-.tabs button:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.tabs button.active {
-  border-bottom-color: #ffd700;
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.main-content {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
-}
-
-.stats-bar {
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 10px;
-  padding: 15px;
-  margin-bottom: 20px;
-  display: flex;
-  justify-content: space-around;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.stats-bar span {
-  font-weight: bold;
-  color: #333;
-}
-
-section {
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 15px;
-  padding: 30px;
-  margin: 20px 0;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
-}
-
-.upload-area {
-  border: 2px dashed #ccc;
-  border-radius: 10px;
-  padding: 40px;
-  margin: 20px 0;
-  transition: border-color 0.3s;
-}
-
-.upload-area:hover {
-  border-color: #667eea;
-}
-
-.upload-area input[type="file"] {
-  margin-bottom: 10px;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-  width: 100%;
-}
-
-.search-form {
-  display: flex;
-  gap: 10px;
-  margin: 20px 0;
-}
-
-.search-form input {
-  flex: 1;
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  font-size: 1rem;
-}
-
-.search-form button,
-.chat-form button,
-.upload-area button {
-  background: linear-gradient(45deg, #667eea, #764ba2);
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 1rem;
-  transition: transform 0.2s;
-}
-
-.search-form button:hover,
-.chat-form button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-}
-
-.search-form button:disabled,
-.chat-form button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.search-results {
-  text-align: left;
-  margin-top: 30px;
-}
-
-.result-item {
-  background: #f8f9fa;
-  border-left: 4px solid #667eea;
-  padding: 20px;
-  margin: 15px 0;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.result-score {
-  font-weight: bold;
-  color: #667eea;
-  font-size: 0.9rem;
-  margin-bottom: 5px;
-}
-
-.result-source {
-  color: #666;
-  font-size: 0.9rem;
-  margin-bottom: 10px;
-}
-
-.result-text {
-  line-height: 1.6;
-  color: #333;
-}
-
-.chat-container {
-  max-width: 800px;
-  margin: 0 auto;
-  height: 500px;
-  display: flex;
-  flex-direction: column;
-}
-
-.chat-history {
-  flex: 1;
-  overflow-y: auto;
-  border: 1px solid #ddd;
-  border-radius: 10px;
-  padding: 20px;
-  margin-bottom: 20px;
-  text-align: left;
-  background: #fafafa;
-}
-
-.message {
-  margin: 15px 0;
-  padding: 15px;
-  border-radius: 10px;
-  max-width: 80%;
-}
-
-.message.user {
-  background: linear-gradient(45deg, #667eea, #764ba2);
-  color: white;
-  margin-left: auto;
-  text-align: right;
-}
-
-.message.ai {
-  background: #e9ecef;
-  color: #333;
-  margin-right: auto;
-}
-
-.message-content {
-  line-height: 1.5;
-}
-
-.message-sources {
-  margin-top: 10px;
-  font-size: 0.8rem;
-  color: #666;
-}
+export default App;

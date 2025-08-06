@@ -14,10 +14,11 @@ services:
       - rag_network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/heartbeat')"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
       interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 5
+      start_period: 40s
 
   # RAG Service - Основна обробка документів і пошук
   rag-service:
@@ -44,10 +45,11 @@ services:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health').raise_for_status()"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 30s
 
   # Ollama LLM Service
   ollama:
@@ -62,6 +64,12 @@ services:
     networks:
       - rag_network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     # GPU support (uncomment if you have NVIDIA GPU)
     # deploy:
     #   resources:
@@ -84,14 +92,17 @@ services:
     networks:
       - rag_network
     depends_on:
-      - ollama
-      - rag-service
+      ollama:
+        condition: service_healthy
+      rag-service:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health').raise_for_status()"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 30s
 
   # Frontend Web Interface
   frontend:
@@ -105,8 +116,10 @@ services:
     networks:
       - rag_network
     depends_on:
-      - rag-service
-      - llm-service
+      rag-service:
+        condition: service_healthy
+      llm-service:
+        condition: service_healthy
     restart: unless-stopped
 
   # Redis для кешування (опціонально)
@@ -120,6 +133,11 @@ services:
       - rag_network
     restart: unless-stopped
     command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 networks:
   rag_network:
