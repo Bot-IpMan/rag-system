@@ -6,8 +6,7 @@
 
 Проект складається з кількох сервісів, що запускаються через `docker compose`:
 
-- **chromadb** – зберігає векторні подання документів.
-- **rag-service** – FastAPI‑сервіс для обробки файлів та пошуку по базі.
+- **rag-service** – FastAPI‑сервіс з вбудованою ChromaDB для обробки файлів та пошуку.
 - **ollama** – контейнер з локальною LLM‑моделлю.
 - **llm-service** – проксі до Ollama та точка входу для генерації відповідей.
 - **frontend** – React‑інтерфейс для завантаження документів і чату.
@@ -42,7 +41,6 @@ docker compose up --build
 ```
 rag-system/
 ├── docker-compose.yml
-├── requirements.txt
 ├── rag-service/
 ├── llm-service/
 ├── frontend/
@@ -57,15 +55,13 @@ rag-system/
 rag-system/
 ├── 📄 docker-compose.yml                    # ← ЗАМІНИТИ виправленою версією
 ├── 📄 README.md                             # ← Існуючий файл
-├── 📄 requirements.txt                      # ← Порожній, можна видалити
 ├── 📄 .env                                  # ← СТВОРИТИ (опціонально)
 ├── 📄 .gitignore                            # ← СТВОРИТИ
 │
 ├── 📂 scripts/
-│   ├── 📄 startup.sh                        # ← СТВОРИТИ новий файл
-│   ├── 📄 fix_chromadb.sh                   # ← СТВОРИТИ новий файл
-│   ├── 📄 diagnose.py                       # ← СТВОРИТИ новий файл
-│   ├── 📄 setup.sh                          # ← Існуючий файл (можна замінити)
+│   ├── 📄 startup.sh                        # ← Існуючий файл
+│   ├── 📄 diagnose.py                       # ← Існуючий файл
+│   ├── 📄 setup.sh                          # ← Існуючий файл
 │   ├── 📄 health_check.py                   # ← Існуючий неповний файл
 │   └── 📄 load_documents.py                 # ← Порожній файл
 │
@@ -153,31 +149,17 @@ cp rag-service/Dockerfile rag-service/Dockerfile.backup
 
 **📄 scripts/startup.sh**
 ```bash
-# Створити новий файл
-touch scripts/startup.sh
 chmod +x scripts/startup.sh
-# Вставити вміст з artifact "startup_script"
-```
-
-**📄 scripts/fix_chromadb.sh**
-```bash
-# Створити новий файл
-touch scripts/fix_chromadb.sh
-chmod +x scripts/fix_chromadb.sh
-# Вставити вміст з artifact "fix_chromadb"
 ```
 
 **📄 scripts/diagnose.py**
 ```bash
-# Створити новий файл
-touch scripts/diagnose.py
 chmod +x scripts/diagnose.py
-# Вставити вміст з artifact "diagnose_script"
 ```
 
 **📄 .env** (корінь проекту)
 ```bash
-# Створити файл з налаштуваннями
+# Створити файл з налаштуваннями при потребі
 touch .env
 ```
 
@@ -199,37 +181,12 @@ mkdir -p ~/.cache/huggingface
 
 ## 🚀 Покрокова інструкція запуску:
 
-### Крок 1: Підготовка файлів
+### Крок 1: Запуск системи
 ```bash
-cd rag-system
+# Запуск усіх сервісів
+docker compose up --build
 
-# Створення директорій
-mkdir -p data/{uploads,processed,vector_db}
-mkdir -p scripts
-
-# Створення скриптів (додайте вміст з artifacts)
-touch scripts/startup.sh scripts/fix_chromadb.sh scripts/diagnose.py
-chmod +x scripts/*.sh scripts/*.py
-```
-
-### Крок 2: Оновлення конфігурації
-```bash
-# Резервні копії
-cp docker-compose.yml docker-compose.yml.backup
-cp rag-service/Dockerfile rag-service/Dockerfile.backup
-
-# Замінити файли новим вмістом з artifacts
-```
-
-### Крок 3: Запуск системи
-```bash
-# Швидке виправлення ChromaDB
-./scripts/fix_chromadb.sh
-
-# АБО повний запуск системи
-./scripts/startup.sh
-
-# АБО діагностика проблем
+# Діагностика проблем
 python3 scripts/diagnose.py
 ```
 
@@ -238,8 +195,6 @@ python3 scripts/diagnose.py
 ### 📄 .env (корінь проекту)
 ```env
 # Налаштування для RAG системи
-CHROMA_HOST=chromadb
-CHROMA_PORT=8000
 EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
 CHUNK_SIZE=1000
 CHUNK_OVERLAP=200
@@ -291,8 +246,6 @@ npm-debug.log*
 1. **Високий пріоритет:**
    - ✅ Замінити `docker-compose.yml`
    - ✅ Замінити `rag-service/Dockerfile`
-   - ✅ Створити `scripts/fix_chromadb.sh`
-
 2. **Середній пріоритет:**
    - ✅ Створити `scripts/startup.sh`
    - ✅ Створити `scripts/diagnose.py`

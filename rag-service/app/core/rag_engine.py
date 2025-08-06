@@ -19,13 +19,11 @@ class RAGEngine:
     
     def __init__(
         self,
-        chroma_host: str = "localhost",
-        chroma_port: int = 8000,
+        db_path: str = "/app/vector_db",
         embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2",
         collection_name: str = "documents"
     ):
-        self.chroma_host = chroma_host
-        self.chroma_port = chroma_port
+        self.db_path = db_path
         self.embedding_model_name = embedding_model
         self.collection_name = collection_name
         
@@ -46,10 +44,9 @@ class RAGEngine:
                 self.embedding_model_name
             )
             
-            logger.info("Підключення до ChromaDB...")
-            self.client = chromadb.HttpClient(
-                host=self.chroma_host,
-                port=self.chroma_port,
+            logger.info("Ініціалізація локальної ChromaDB...")
+            self.client = chromadb.PersistentClient(
+                path=self.db_path,
                 settings=Settings(anonymized_telemetry=False)
             )
             

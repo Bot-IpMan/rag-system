@@ -1,0 +1,14 @@
+# Python caches
+__pycache__/
+*.py[cod]
+*.env
+
+# Data directories
+/data/
+
+# Node
+frontend/node_modules/
+frontend/package-lock.json
+
+# Misc
+.env
