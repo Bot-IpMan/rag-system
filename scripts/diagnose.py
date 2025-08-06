@@ -16,11 +16,6 @@ from datetime import datetime
 class RAGDiagnostics:
     def __init__(self):
         self.services = {
-            'ChromaDB': {
-                'url': 'http://localhost:8001/api/v1/heartbeat',
-                'container': 'rag-system-chromadb-1',
-                'healthy': False
-            },
             'RAG Service': {
                 'url': 'http://localhost:8002/health',
                 'container': 'rag-system-rag-service-1',

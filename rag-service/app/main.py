@@ -36,8 +36,7 @@ async def lifespan(app: FastAPI):
         )
         
         rag_engine = RAGEngine(
-            chroma_host=settings.CHROMA_HOST,
-            chroma_port=settings.CHROMA_PORT,
+            db_path=settings.CHROMA_DB_DIR,
             embedding_model=settings.EMBEDDING_MODEL,
             collection_name=settings.COLLECTION_NAME
         )

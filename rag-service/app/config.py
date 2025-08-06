@@ -3,10 +3,9 @@ from pydantic_settings import BaseSettings
 from typing import Optional
 
 class Settings(BaseSettings):
-    # ChromaDB настройки
-    CHROMA_HOST: str = "chromadb"
-    CHROMA_PORT: int = 8000
-    
+    # Шлях до локальної бази ChromaDB
+    CHROMA_DB_DIR: str = "/app/vector_db"
+
     # Модель для ембедінгів
     EMBEDDING_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
     
