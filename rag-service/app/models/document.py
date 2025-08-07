@@ -36,7 +36,7 @@ class DocumentUploadResponse(BaseModel):
     processing_status: str  # "completed", "in_progress", "failed"
     
 class URLRequest(BaseModel):
-    url: str = Field(..., regex=r'^https?://.+')
+    url: str = Field(..., pattern=r'^https?://.+')
     title: Optional[str] = None
     
 class DocumentStatsResponse(BaseModel):
